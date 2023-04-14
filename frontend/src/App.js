@@ -4,19 +4,61 @@ import axios from "axios";
 import { List, ListItem, ListItemText, Button, TextField, Grid, Container } from "@mui/material"; // Import Material-UI components
 
 const RealTimeInventory = () => {
+  //All states
   const [inventory, setInventory] = useState([]);
+  const [id, setId] = useState("");
   const [productName, setProductName] = useState("");
   const [productQuantity, setProductQuantity] = useState(0);
   const [productPrice, setProductPrice] = useState(0);
-  const [id, setId] = useState("")
+  const [notification, setNotification] = useState(null);
 
-  const socket = io("http://localhost:5001"); // Connect to the server on localhost:5000
+  // Connect to the server on localhost:5001
+  const socket = io("http://localhost:5001");
 
   useEffect(() => {
-    socket.on("connect", () => console.log("open", socket.id));
+    // Listen for event from server - Acc to event change data of inventory
+    socket.on('connect', () => {
+      console.log('Connected to server:', socket.id);
+    });
+    socket.on('addProduct', (data) => {
+      setInventory((products) => [...products, data]);
+      setNotification(`Product added: ${data.name}`);
+    });
+    socket.on('deleteProduct', (data) => {
+      setInventory((products) => products.filter((product) => product._id !== data._id));
+      setNotification(`Product deleted: ${data.name}`);
+    });
+    socket.on('updateProduct', (data) => {
+      setInventory((products) =>
+        products.map((product) => (product._id === data._id ? data : product))
+      );
+      setNotification(`Product updated: ${data.name}`);
+    });
+
+    //fetching all data
     fetchData();
+
+    //Clean up the event listener when the component unmounts
+    return () => {
+      socket.off('connect');
+      socket.off('addProduct');
+      socket.off('deleteProduct');
+      socket.off('updateProduct');
+    };
   }, []);
 
+  //another useEffect for notification . automatically close after 3 sec
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+
+  //fetchAll Product
   const fetchData = async () => {
     await axios
       .get("http://localhost:5001/getAll")
@@ -30,6 +72,7 @@ const RealTimeInventory = () => {
       });
   };
 
+  //Onclick event of Add
   const handleAddProduct = async () => {
     await axios
       .post("http://localhost:5001/add", {
@@ -37,29 +80,36 @@ const RealTimeInventory = () => {
         quantity: productQuantity,
         price: productPrice,
       })
-      .then((response) => {
-        // Emit "addProduct" event to server
-        socket.emit("addProduct", response.status);
+      .then(() => {
         fetchData();
+        setProductName("")
+        setProductQuantity(0)
+        setProductPrice(0)
+        setId("")
       })
       .catch((error) => {
         console.error("Error adding product:", error);
       });
   };
 
+  //onclick event of Delete
   const handleDeleteProduct = async () => {
     await axios
       .delete(`http://localhost:5001/delete/${id}`)
       .then(() => {
-        // Emit "deleteProduct" event to server
-        socket.emit('deleteProduct', { name: productName });
         fetchData();
+        setProductName("")
+        setProductQuantity(0)
+        setProductPrice(0)
+        setId("")
       })
       .catch((error) => {
         console.error("Error deleting product:", error);
       });
   };
 
+
+  //onclick event of update
   const handleUpdateProduct = async () => {
     await axios
       .put(`http://localhost:5001/update/${id}`, {
@@ -68,30 +118,53 @@ const RealTimeInventory = () => {
         price: productPrice,
       })
       .then(() => {
-        // Emit "updateProduct" event to server
-        socket.emit("updateProduct", { name: productName });
         fetchData();
+        setProductName("")
+        setProductQuantity(0)
+        setProductPrice(0)
+        setId("")
       })
       .catch((error) => {
         console.error("Error updating product:", error);
       });
   };
 
-  const handleListItemClick = (id) => {
-    setId(id)
-    console.log("Clicked row:", id);
+  //setting fetch data in states
+  const handleListItemClick = (item) => {
+    setId(item._id)
+    setProductName(item.name)
+    setProductQuantity(item.quantity)
+    setProductPrice(item.price)
+  };
+
+  //create notification component
+  const Notification = ({ message, onClose }) => {
+    return (
+      <div style={{ padding: '10px', backgroundColor: '#e6e6e6', borderRadius: '5px' }}>
+        <p style={{ margin: '0' }}>{message}</p>
+        <button onClick={onClose} style={{ marginTop: '10px' }}>Close</button>
+      </div>
+    );
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
+        {/*show notification on event*/}
+        {notification && (
+          <Notification
+            message={notification}
+            onClose={() => setNotification(null)}
+          />
+        )}
         <h1>Real-time Inventory</h1>
+        {/*Inventory*/}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <List>
-            {inventory?.map((item) => (
+            {inventory?.map((item, i) => (
               <ListItem
-                key={item.name}
-                onClick={() => handleListItemClick(item._id)} // Add onClick event handler to ListItem
+                key={i}
+                onClick={() => handleListItemClick(item)} // Add onClick event handler to ListItem
               >
                 <ListItemText
                   primary={`${item.name} - Quantity: ${item.quantity} - Price: ${item.price}`}
@@ -102,40 +175,42 @@ const RealTimeInventory = () => {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "10px" , textAlign: "center"}}>
+      {/*input field to get data*/}
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "10px", textAlign: "center" }}>
         <Container>
-        <Grid container spacing={1}>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              variant="outlined"
-              value={productName}
-              onChange={e => setProductName(e.target.value)}
-              label="Product Name"
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
+          <Grid container spacing={1}>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                variant="outlined"
+                type="text"
+                value={productName}
+                onChange={e => setProductName(e.target.value)}
+                label="Product Name"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
 
-              variant="outlined"
-              type="number"
-              value={productQuantity}
-              onChange={e => setProductQuantity(parseInt(e.target.value))}
-              label="Product Quantity"
-            />
+                variant="outlined"
+                type="number"
+                value={productQuantity}
+                onChange={e => setProductQuantity(e.target.value)}
+                label="Product Quantity"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                variant="outlined"
+                type="number"
+                value={productPrice}
+                onChange={e => setProductPrice(e.target.value)}
+                label="Product Price"
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              variant="outlined"
-              type="number"
-              value={productPrice}
-              onChange={e => setProductPrice(parseFloat(e.target.value))}
-              label="Product Price"
-            />
-          </Grid>
-        </Grid>
         </Container>
 
-
+        {/*button to perform action*/}
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", textAlign: "center", marginTop: "10px" }}>
           <Button variant="contained" onClick={handleAddProduct} style={{ marginLeft: "10px", marginRight: "10px" }}>Add Product</Button>
           <Button variant="contained" onClick={handleDeleteProduct} style={{ marginLeft: "10px", marginRight: "10px" }}>Delete Product</Button>
