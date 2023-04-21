@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import axios from "axios";
-import { List, ListItem, ListItemText, Button, TextField, Grid, Container } from "@mui/material"; // Import Material-UI components
+import {  Button, TextField, Grid, Container, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material"; // Import Material-UI components
 
 const RealTimeInventory = () => {
   //All states
@@ -131,6 +131,7 @@ const RealTimeInventory = () => {
 
   //setting fetch data in states
   const handleListItemClick = (item) => {
+    handleRowClick(item);
     setId(item._id)
     setProductName(item.name)
     setProductQuantity(item.quantity)
@@ -140,70 +141,92 @@ const RealTimeInventory = () => {
   //create notification component
   const Notification = ({ message, onClose }) => {
     return (
-      <div style={{ padding: '10px', backgroundColor: '#e6e6e6', borderRadius: '5px' }}>
-        <p style={{ margin: '0' }}>{message}</p>
-        <button onClick={onClose} style={{ marginTop: '10px' }}>Close</button>
+      <div style={{ padding: '10px', backgroundColor: '#e6e6e6', borderRadius: '5px' ,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center"}}>
+        <Typography>{message}</Typography>
+        <Button variant="contained" onClick={onClose} style={{  marginTop: "10px", background: "lightblue", color: "black" }} >Cancel</Button>
       </div>
     );
   };
 
+  //change row color of selected row
+  const [selectedRow, setSelectedRow] = useState(null);
+  const handleRowClick = (item) => {
+    setSelectedRow(item.name);
+  };
+
+
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
-        {/*show notification on event*/}
-        {notification && (
-          <Notification
-            message={notification}
-            onClose={() => setNotification(null)}
-          />
-        )}
-        <h1>Real-time Inventory</h1>
+     
+      {/*show notification on event*/}
+      {notification && (
+        <Notification
+          message={notification}
+          onClose={() => setNotification(null)}
+        />
+      )}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <h1 >Real-time Inventory</h1>
         {/*Inventory*/}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <List>
-            {inventory?.map((item, i) => (
-              <ListItem
-                key={i}
-                onClick={() => handleListItemClick(item)} // Add onClick event handler to ListItem
-              >
-                <ListItemText
-                  primary={`${item.name} - Quantity: ${item.quantity} - Price: ${item.price}`}
-                />
-              </ListItem>
-            ))}
-          </List>
+        <div style={{ width: 'fit-content', margin: 'auto' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Price</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {inventory?.map((item) => (
+                <TableRow
+                  key={item.name}
+                  onClick={() => handleListItemClick(item)}
+                  style={{ cursor: "pointer", backgroundColor: item.name === selectedRow ? 'lightblue' : 'white', }}
+                >
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{item.price}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
+
       {/*input field to get data*/}
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "10px", textAlign: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "20px", textAlign: "center" }}>
+
         <Container>
           <Grid container spacing={1}>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={4} >
               <TextField
-                variant="outlined"
+             
+                variant="filled"
                 type="text"
                 value={productName}
-                onChange={e => setProductName(e.target.value)}
+                onChange={(e) => setProductName(e.target.value)}
                 label="Product Name"
+
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
-
-                variant="outlined"
+                
+                variant="filled"
                 type="number"
                 value={productQuantity}
-                onChange={e => setProductQuantity(e.target.value)}
+                onChange={(e) => setProductQuantity(e.target.value)}
                 label="Product Quantity"
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
-                variant="outlined"
+                variant="filled"
                 type="number"
                 value={productPrice}
-                onChange={e => setProductPrice(e.target.value)}
+                onChange={(e) => setProductPrice(e.target.value)}
                 label="Product Price"
               />
             </Grid>
@@ -212,9 +235,9 @@ const RealTimeInventory = () => {
 
         {/*button to perform action*/}
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", textAlign: "center", marginTop: "10px" }}>
-          <Button variant="contained" onClick={handleAddProduct} style={{ marginLeft: "10px", marginRight: "10px" }}>Add Product</Button>
-          <Button variant="contained" onClick={handleDeleteProduct} style={{ marginLeft: "10px", marginRight: "10px" }}>Delete Product</Button>
-          <Button variant="contained" onClick={handleUpdateProduct} style={{ marginLeft: "10px", marginRight: "10px" }}>Update Product</Button>
+          <Button variant="contained" onClick={handleAddProduct} style={{ marginLeft: "10px", marginRight: "10px", background: "lightblue", color: "black" }}>Add Product</Button>
+          <Button variant="contained" onClick={handleDeleteProduct} style={{ marginLeft: "10px", marginRight: "10px", background: "lightblue", color: "black" }}>Delete Product</Button>
+          <Button variant="contained" onClick={handleUpdateProduct} style={{ marginLeft: "10px", marginRight: "10px", background: "lightblue", color: "black" }}>Update Product</Button>
         </div>
       </div>
     </div>
